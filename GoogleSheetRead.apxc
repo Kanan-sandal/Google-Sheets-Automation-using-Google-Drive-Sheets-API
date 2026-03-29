@@ -1,0 +1,25 @@
+public class GoogleSheetRead {
+
+    public static void readRange(String range){
+
+        String sheetId =
+        '17NNtmUdf8MbJ4eZNAjAcZPqRd1sFxi-fRCs-0je8oso';
+
+        String token = GoogleAuth.getAccessToken();
+
+        HttpRequest req = new HttpRequest();
+
+        req.setEndpoint(
+        'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+
+        '/values/SalesforceData!'+range
+        );
+
+        req.setMethod('GET');
+        req.setHeader('Authorization','Bearer '+token);
+
+        Http http = new Http();
+        HttpResponse res = http.send(req);
+
+        System.debug('READ RESPONSE: ' + res.getBody());
+    }
+}
