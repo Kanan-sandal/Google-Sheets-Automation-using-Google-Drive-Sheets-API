@@ -1,0 +1,61 @@
+public class GoogleDriveToSalesforce {
+
+    public static void cloneAndAttach(Id oppId){
+
+        
+        Opportunity opp = [
+            SELECT Id, Name 
+            FROM Opportunity 
+            WHERE Id = :oppId 
+            LIMIT 1
+        ];
+
+      
+        String newSheetId = GoogleSheetsUtil.cloneSheetToFolder(
+            '',
+            opp.Name, // 
+            '' 
+        );
+
+        
+        String token = GoogleAuth.getAccessToken();
+
+        HttpRequest req = new HttpRequest();
+        req.setEndpoint(
+            'https://www.googleapis.com/drive/v3/files/'+newSheetId+
+            '/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        req.setMethod('GET');
+        req.setHeader('Authorization','Bearer '+token);
+        req.setTimeout(120000);
+
+        Http http = new Http();
+        HttpResponse res = http.send(req);
+
+        Blob fileBlob = res.getBodyAsBlob();
+
+        
+        ContentVersion cv = new ContentVersion();
+        cv.Title = opp.Name;
+        cv.PathOnClient = opp.Name + '.xlsx';
+        cv.VersionData = fileBlob;
+
+        insert cv;
+
+        
+        Id contentDocId = [
+            SELECT ContentDocumentId 
+            FROM ContentVersion 
+            WHERE Id = :cv.Id
+        ].ContentDocumentId;
+
+        ContentDocumentLink cdl = new ContentDocumentLink();
+        cdl.ContentDocumentId = contentDocId;
+        cdl.LinkedEntityId = opp.Id;
+        cdl.ShareType = 'V';
+
+        insert cdl;
+
+        System.debug('✅ File attached to Opportunity');
+    }
+}
