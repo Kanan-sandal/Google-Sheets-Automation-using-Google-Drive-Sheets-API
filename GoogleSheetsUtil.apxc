@@ -1,0 +1,146 @@
+public class GoogleSheetsUtil {
+
+    // ================= COMMON REQUEST =================
+    private static HttpResponse sendRequest(String endpoint,String method,String body){
+
+        String token = GoogleAuth.getAccessToken();
+
+        HttpRequest req = new HttpRequest();
+        req.setEndpoint(endpoint);
+        req.setMethod(method);
+        req.setHeader('Authorization','Bearer '+token);
+        req.setHeader('Content-Type','application/json');
+
+        if(body!=null){
+            req.setBody(body);
+        }
+
+        Http http = new Http();
+        HttpResponse res = http.send(req);
+
+        System.debug('STATUS: '+res.getStatus());
+        System.debug('BODY: '+res.getBody());
+
+        return res;
+    }
+
+    // ================= READ =================
+    public static void readRange(String sheetId,String range){
+
+        String endpoint =
+        'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+
+        '/values/'+range;
+
+        sendRequest(endpoint,'GET',null);
+    }
+
+    // ================= WRITE =================
+    public static void writeRange(String sheetId,String range,List<List<Object>> values){
+
+        String endpoint =
+        'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+
+        '/values/'+range+'?valueInputOption=RAW';
+
+        String body = JSON.serialize(new Map<String,Object>{
+            'values'=>values
+        });
+
+        sendRequest(endpoint,'PUT',body);
+    }
+
+    // ================= APPEND =================
+    public static void appendRow(String sheetId,String tabName,List<Object> row){
+
+        String endpoint =
+        'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+
+        '/values/'+tabName+'!A:E:append?valueInputOption=RAW';
+
+        String body = JSON.serialize(new Map<String,Object>{
+            'values'=> new List<List<Object>>{row}
+        });
+
+        sendRequest(endpoint,'POST',body);
+    }
+
+    // ================= CREATE TAB =================
+    public static void createTab(String sheetId,String tabName){
+
+        String endpoint =
+        'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+':batchUpdate';
+
+        String body =
+        '{ "requests": ['+
+        '{ "addSheet": { "properties": { "title": "'+tabName+'" } } }'+
+        '] }';
+
+        sendRequest(endpoint,'POST',body);
+    }
+
+    // ================= CLONE INTO FOLDER =================
+    public static String cloneSheetToFolder(
+        String sourceSheetId,
+        String newFileName,
+        String folderId
+    ){
+
+        String endpoint =
+        'https://www.googleapis.com/drive/v3/files/'+sourceSheetId+
+        '/copy?supportsAllDrives=true';
+
+        String body = JSON.serialize(new Map<String,Object>{
+            'name' => newFileName,
+            'parents' => new List<String>{ folderId }
+        });
+
+        HttpResponse res = sendRequest(endpoint,'POST',body);
+
+        Map<String,Object> result =
+        (Map<String,Object>)JSON.deserializeUntyped(res.getBody());
+
+        String newSheetId = (String)result.get('id');
+
+        System.debug('CLONED SHEET ID: ' + newSheetId);
+
+        return newSheetId;
+    }
+
+    // ================= LIST FILES (NEW) =================
+    public static List<String> listFiles(){
+
+        String endpoint =
+        'https://www.googleapis.com/drive/v3/files?q=trashed=false&fields=files(id,name)';
+
+        HttpResponse res = sendRequest(endpoint,'GET',null);
+
+        Map<String,Object> result =
+        (Map<String,Object>)JSON.deserializeUntyped(res.getBody());
+
+        List<Object> files = (List<Object>)result.get('files');
+
+        List<String> fileIds = new List<String>();
+
+        for(Object obj : files){
+            Map<String,Object> file = (Map<String,Object>)obj;
+
+            String id = (String)file.get('id');
+            String name = (String)file.get('name');
+
+            System.debug('FILE: '+name+' | ID: '+id);
+
+            fileIds.add(id);
+        }
+
+        return fileIds;
+    }
+
+    // ================= DELETE FILE (NEW) =================
+    public static void deleteFile(String fileId){
+
+        String endpoint =
+        'https://www.googleapis.com/drive/v3/files/'+fileId;
+
+        HttpResponse res = sendRequest(endpoint,'DELETE',null);
+
+        System.debug('DELETED FILE ID: ' + fileId);
+    }
+}
