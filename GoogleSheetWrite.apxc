@@ -1,0 +1,34 @@
+public class GoogleSheetWrite {
+
+    public static void writeToRange(String range, List<List<Object>> values){
+
+        String sheetId =
+        '';
+
+        String token = GoogleAuth.getAccessToken();
+
+        HttpRequest req = new HttpRequest();
+
+        req.setEndpoint(
+        'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+
+        '/values/SalesforceData!'+range+'?valueInputOption=RAW'
+        );
+
+        req.setMethod('PUT');
+
+        req.setHeader('Authorization','Bearer '+token);
+        req.setHeader('Content-Type','application/json');
+
+        String body = JSON.serialize(new Map<String,Object>{
+            'values' => values
+        });
+
+        req.setBody(body);
+
+        Http http = new Http();
+        HttpResponse res = http.send(req);
+
+        System.debug('WRITE STATUS: ' + res.getStatus());
+        System.debug('WRITE BODY: ' + res.getBody());
+    }
+}
